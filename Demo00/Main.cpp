@@ -22,8 +22,12 @@
 LPDIRECTDRAW lpDirectDrawObject = NULL; // direct draw object
 LPDIRECTDRAWSURFACE lpPrimary = NULL;   // primary surface
 LPDIRECTDRAWPALETTE lpPrimaryPalette;   // its palette
+LPDIRECTDRAWSURFACE lpSecondary = NULL; // back buffer
+LPDIRECTDRAWPALETTE lpSecondaryPalette; // its palette
 BOOL ActiveApp;                         // is this application active?
-CBmpFileReader background;              // background image
+
+CBmpFileReader frame0; // first frame
+CBmpFileReader frame1; // second frame
 
 BOOL appIsRunning = TRUE;
 
@@ -33,19 +37,50 @@ LPDIRECTDRAWPALETTE CreatePalette(LPDIRECTDRAWSURFACE surface);
 BOOL InitDirectDraw(HWND hwnd);
 HWND CreateDefaultWindow(const char *name, HINSTANCE hInstance);
 
-static BOOL LoadImages()
-{ // load pictures from disk
+BOOL LoadImages()
+{
     // draw the first image to the primary surface
-    if (!background.load("bckgnd.bmp"))           // read from file
-        return FALSE;                             // read failed
-    if (!background.setpalette(lpPrimaryPalette)) // set palette
-        return FALSE;                             // set palette failed
-    if (!background.draw(lpPrimary))              // draw to surface
-        return FALSE;                             // draw failed
-    return TRUE;                                  // all steps succeeded
+    if (!frame0.load("up.bmp"))
+        return FALSE;                         // read from file
+    if (!frame0.setpalette(lpPrimaryPalette)) // set palette
+        return FALSE;
+    if (!frame0.draw(lpPrimary))
+        return FALSE; // draw
+    // draw the second image to the secondary surface
+    if (!frame1.load("down.bmp"))
+        return FALSE;                           // read from file
+    if (!frame1.setpalette(lpSecondaryPalette)) // set palette
+        return FALSE;
+    if (!frame1.draw(lpSecondary))
+        return FALSE; // draw
+    // success exit
+    return TRUE;
 } // LoadImages
 
-static BOOL keyboard_handler(WPARAM keystroke)
+BOOL RestoreSurfaces()
+{ // restore all surfaces
+    BOOL result = TRUE;
+    if (SUCCEEDED(lpPrimary->Restore()))
+        result = result && frame0.draw(lpPrimary) &&  // redraw image
+                 frame0.setpalette(lpPrimaryPalette); // set palette
+    else
+        return FALSE;
+    if (SUCCEEDED(lpSecondary->Restore()))
+        result = result && frame1.draw(lpSecondary) &&  // redraw image
+                 frame1.setpalette(lpSecondaryPalette); // set palette
+    else
+        return FALSE;
+    return result;
+} // RestoreSurfaces
+
+BOOL PageFlip()
+{ // return TRUE if page flip succeeds
+    if (lpPrimary->Flip(NULL, DDFLIP_WAIT) == DDERR_SURFACELOST)
+        return RestoreSurfaces();
+    return TRUE;
+} // PageFlip
+
+BOOL keyboard_handler(WPARAM keystroke)
 {                        // keyboard handler
     BOOL result = FALSE; // return TRUE if game is to end
     switch (keystroke)
@@ -53,6 +88,9 @@ static BOOL keyboard_handler(WPARAM keystroke)
     case VK_ESCAPE:
         result = TRUE;
         break; // exit game
+    case VK_SPACE:
+        result = !PageFlip();
+        break;
     }
     return result;
 } // keyboard_handler
@@ -149,10 +187,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     {                          // if DD object exists
         if (lpPrimary != NULL) // if primary surface exists
         {
-            lpPrimary->Release(); // release primary surface
-            lpPrimary = NULL;     // set to NULL after release
+            if (lpSecondary != NULL)       // if secondary surface exists
+                lpSecondary->Release();    // release secondary surface
+            if (lpPrimary != NULL)         // if primary surface exists
+                lpPrimary->Release();      // release primary surface
         }
-        lpDirectDrawObject->Release(); // release DD object
+        //lpDirectDrawObject->Release(); // release DD object
         lpDirectDrawObject = NULL;     // set to NULL after release
     }
     ShowCursor(TRUE); // show the mouse cursor

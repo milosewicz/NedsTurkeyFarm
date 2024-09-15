@@ -11,10 +11,11 @@
 #include "defines.h"
 
 // globals
-extern LPDIRECTDRAW lpDirectDrawObject;      // direct draw object
-extern LPDIRECTDRAWSURFACE lpPrimary;        // primary surface
-extern LPDIRECTDRAWPALETTE lpPrimaryPalette; // its palette
-
+extern LPDIRECTDRAW lpDirectDrawObject;         // direct draw object
+extern LPDIRECTDRAWSURFACE lpPrimary;           // primary surface
+extern LPDIRECTDRAWPALETTE lpPrimaryPalette;    // its palette
+extern LPDIRECTDRAWSURFACE lpSecondary;         // back buffer
+extern LPDIRECTDRAWPALETTE lpSecondaryPalette;  // its palette
 // helper functions
 
 LPDIRECTDRAWPALETTE CreatePalette(LPDIRECTDRAWSURFACE surface)
@@ -47,17 +48,23 @@ BOOL InitDirectDraw(HWND hwnd)
     // change screen resolution
     if (FAILED(lpDirectDrawObject->SetDisplayMode(SCREEN_WIDTH, SCREEN_HEIGHT, COLOR_DEPTH)))
         return FALSE;
-
-    // create the primary surface
+    // create the surfaces
     DDSURFACEDESC ddsd; // direct draw surface descriptor
     ddsd.dwSize = sizeof(ddsd);
-    ddsd.dwFlags = DDSD_CAPS;
-    ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+    ddsd.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
+    ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX;
+    ddsd.dwBackBufferCount = 1;
     if (FAILED(lpDirectDrawObject->CreateSurface(&ddsd, &lpPrimary, NULL)))
         return FALSE;
-
     // create its palette
     lpPrimaryPalette = CreatePalette(lpPrimary);
+    // get pointer to the secondary surface
+    DDSCAPS ddscaps;
+    ddscaps.dwCaps = DDSCAPS_BACKBUFFER;
+    if (FAILED(lpPrimary->GetAttachedSurface(&ddscaps, &lpSecondary)))
+        return FALSE;
+    // create its palette
+    lpSecondaryPalette = CreatePalette(lpSecondary);
     return TRUE;
 } // InitDirectDraw
 
