@@ -17,6 +17,7 @@
 // custom includes
 #include "bmp.h"
 #include "defines.h"
+#include "timer.h"
 
 // globals
 LPDIRECTDRAW lpDirectDrawObject = NULL; // direct draw object
@@ -30,6 +31,8 @@ CBmpFileReader frame0; // first frame
 CBmpFileReader frame1; // second frame
 
 BOOL appIsRunning = TRUE;
+
+CTimer Timer; // game timer
 
 // helper functions
 
@@ -80,6 +83,22 @@ BOOL PageFlip()
     return TRUE;
 } // PageFlip
 
+BOOL ComposeFrame()
+{ // compose a frame of animation
+    static int last_time = Timer.time();
+    if (Timer.elapsed(last_time, 1000))
+    {
+        PageFlip();
+    }
+    return TRUE;
+} // ComposeFrame
+
+BOOL ProcessFrame()
+{                      // process a frame of animation
+    ComposeFrame();    // compose a frame in secondary surface
+    return TRUE;
+} // ProcessFrame
+
 BOOL keyboard_handler(WPARAM keystroke)
 {                        // keyboard handler
     BOOL result = FALSE; // return TRUE if game is to end
@@ -89,7 +108,7 @@ BOOL keyboard_handler(WPARAM keystroke)
         result = TRUE;
         break; // exit game
     case VK_SPACE:
-        result = !PageFlip();
+        // result = !PageFlip();
         break;
     }
     return result;
@@ -172,6 +191,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 OutputDebugString("WM_QUIT\n");
                 appIsRunning = FALSE;
             }
+        }
+        else
+        {
+            ProcessFrame();
         }
         //else if (!ActiveApp)
         //    WaitMessage();
